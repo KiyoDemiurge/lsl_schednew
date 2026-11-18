@@ -1,0 +1,180 @@
+
+CREATE DATABASE IF NOT EXISTS lsc_faculty_system
+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE lsc_faculty_system;
+
+CREATE TABLE departments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(20) NOT NULL UNIQUE,
+    name VARCHAR(120) NOT NULL,
+    department_head VARCHAR(120) DEFAULT NULL
+);
+
+CREATE TABLE faculty (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    faculty_id VARCHAR(30) NOT NULL UNIQUE,
+    full_name VARCHAR(150) NOT NULL,
+    email VARCHAR(150) DEFAULT NULL,
+    department_id INT DEFAULT NULL,
+    employment_type ENUM('Full-time','Part-time') DEFAULT 'Full-time',
+    specialization VARCHAR(150) DEFAULT NULL,
+    status ENUM('Active','Inactive') DEFAULT 'Active',
+    FOREIGN KEY (department_id) REFERENCES departments(id)
+        ON DELETE SET NULL
+);
+
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin','faculty') NOT NULL,
+    faculty_id INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (faculty_id) REFERENCES faculty(id)
+        ON DELETE SET NULL
+);
+
+CREATE TABLE subjects (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(30) NOT NULL UNIQUE,
+    name VARCHAR(150) NOT NULL,
+    units DECIMAL(4,1) DEFAULT 3,
+    lecture_hours DECIMAL(4,1) DEFAULT 3,
+    lab_hours DECIMAL(4,1) DEFAULT 0,
+    department_id INT DEFAULT NULL,
+    FOREIGN KEY (department_id) REFERENCES departments(id)
+        ON DELETE SET NULL
+);
+
+CREATE TABLE sections (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    program VARCHAR(100) NOT NULL,
+    year_level VARCHAR(20) NOT NULL,
+    academic_year VARCHAR(20) NOT NULL,
+    semester VARCHAR(30) NOT NULL
+);
+
+CREATE TABLE classrooms (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    room_number VARCHAR(30) NOT NULL UNIQUE,
+    building VARCHAR(100) DEFAULT NULL,
+    room_type ENUM('Lecture','Laboratory','Other') DEFAULT 'Lecture',
+    capacity INT DEFAULT 40,
+    equipment VARCHAR(255) DEFAULT NULL,
+    status ENUM('Available','Unavailable') DEFAULT 'Available'
+);
+
+CREATE TABLE teaching_assignments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    faculty_id INT NOT NULL,
+    subject_id INT NOT NULL,
+    section_id INT NOT NULL,
+    academic_year VARCHAR(20) NOT NULL,
+    semester VARCHAR(30) NOT NULL,
+    status ENUM('Pending','Approved','Rejected') DEFAULT 'Pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (faculty_id) REFERENCES faculty(id),
+    FOREIGN KEY (subject_id) REFERENCES subjects(id),
+    FOREIGN KEY (section_id) REFERENCES sections(id)
+);
+
+CREATE TABLE class_schedules (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    assignment_id INT NOT NULL,
+    classroom_id INT NOT NULL,
+    day_of_week ENUM('Monday','Tuesday','Wednesday',
+        'Thursday','Friday','Saturday') NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (assignment_id) REFERENCES teaching_assignments(id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (classroom_id) REFERENCES classrooms(id)
+);
+
+CREATE TABLE schedule_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    faculty_id INT NOT NULL,
+    schedule_id INT DEFAULT NULL,
+    requested_day VARCHAR(20) NOT NULL,
+    requested_start TIME NOT NULL,
+    requested_end TIME NOT NULL,
+    reason TEXT NOT NULL,
+    status ENUM('Pending','Approved','Rejected') DEFAULT 'Pending',
+    remarks TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (faculty_id) REFERENCES faculty(id),
+    FOREIGN KEY (schedule_id) REFERENCES class_schedules(id)
+        ON DELETE SET NULL
+);
+
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    message VARCHAR(255) NOT NULL,
+    is_read TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE audit_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT DEFAULT NULL,
+    action VARCHAR(100) NOT NULL,
+    details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE SET NULL
+);
+
+CREATE TABLE academic_terms (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    academic_year VARCHAR(20) NOT NULL,
+    semester VARCHAR(30) NOT NULL,
+    start_date DATE DEFAULT NULL,
+    end_date DATE DEFAULT NULL,
+    status ENUM('Active','Inactive') DEFAULT 'Active'
+);
+
+CREATE TABLE workload_rules (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    employment_type ENUM('Full-time','Part-time') NOT NULL,
+    minimum_hours DECIMAL(5,1) DEFAULT 0,
+    maximum_hours DECIMAL(5,1) NOT NULL DEFAULT 24
+);
+
+INSERT INTO departments (code, name, department_head) VALUES
+('BSIS', 'Information Systems', 'Department Head'),
+('BSIT', 'Information Technology', 'Department Head'),
+('BSA', 'Accountancy', 'Department Head');
+
+INSERT INTO subjects
+(code, name, units, lecture_hours, lab_hours, department_id) VALUES
+('IS101', 'Introduction to Information Systems', 3, 3, 0, 1),
+('IS102', 'Database Management', 3, 2, 3, 1),
+('IS103', 'Web Development', 3, 2, 3, 1),
+('IT101', 'Computer Networking', 3, 2, 3, 2);
+
+INSERT INTO sections
+(name, program, year_level, academic_year, semester) VALUES
+('BSIS 2A', 'BSIS', '2nd Year', '2026-2027', '1st Semester'),
+('BSIS 2B', 'BSIS', '2nd Year', '2026-2027', '1st Semester'),
+('BSIT 2A', 'BSIT', '2nd Year', '2026-2027', '1st Semester');
+
+INSERT INTO classrooms
+(room_number, building, room_type, capacity, equipment) VALUES
+('Room 101', 'Main Building', 'Lecture', 40, 'Projector'),
+('Lab 201', 'Computer Laboratory', 'Laboratory', 35, 'Computers, Projector'),
+('Room 102', 'Main Building', 'Lecture', 40, 'Whiteboard');
+
+INSERT INTO academic_terms
+(academic_year, semester, status) VALUES
+('2026-2027', '1st Semester', 'Active');
+
+INSERT INTO workload_rules
+(employment_type, minimum_hours, maximum_hours) VALUES
+('Full-time', 12, 24),
+('Part-time', 0, 12);
